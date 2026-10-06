@@ -15,7 +15,6 @@ import {
   CheckCircle2,
   Camera,
   Layers,
-  Mic,
   Users,
   LogOut,
   Sparkles,
@@ -28,7 +27,8 @@ import {
   Sun,
   Moon,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Calendar
 } from "lucide-react";
 
 export const Admin: React.FC = () => {
@@ -52,8 +52,8 @@ export const Admin: React.FC = () => {
     isDbConnected,
   } = useProgrammeStore();
 
-  // Active navigation tab
-  const [activeTab, setActiveTab] = useState<"dashboard" | "sessions" | "talks" | "faculty" | "sync">("sessions");
+  // Active navigation tab (Consolidated 4-tab studio)
+  const [activeTab, setActiveTab] = useState<"sessions" | "faculty" | "dashboard" | "sync">("sessions");
 
   // Auth form state
   const [username, setUsername] = useState("");
@@ -63,7 +63,6 @@ export const Admin: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDay, setSelectedDay] = useState<string>("all");
   const [selectedHall, setSelectedHall] = useState<string>("all");
-  const [selectedType, setSelectedType] = useState<string>("all");
   const [facultyPhotoFilter, setFacultyPhotoFilter] = useState<"all" | "with_photo" | "without_photo">("all");
 
   // Expanded sessions tracking
@@ -370,7 +369,7 @@ export const Admin: React.FC = () => {
     );
   }
 
-  // Filtered sessions (and matching search for session title or nested talks)
+  // Filtered sessions (matching search for session title, venue, or nested talk title & speakers)
   const filteredSessions = sessions.filter((session) => {
     if (selectedDay !== "all" && session.dayName !== selectedDay) return false;
     if (selectedHall !== "all" && session.venue !== selectedHall) return false;
@@ -382,21 +381,6 @@ export const Admin: React.FC = () => {
       const matchTalkTitle = items.some((it) => it.title?.toLowerCase().includes(q));
       const matchSpeaker = items.some((it) => it.speakers?.some((sp) => sp.toLowerCase().includes(q)));
       if (!matchSessionTitle && !matchVenue && !matchTalkTitle && !matchSpeaker) return false;
-    }
-    return true;
-  });
-
-  // Filtered talks for the Talks tab
-  const filteredTalks = allTalks.filter((talk) => {
-    if (selectedDay !== "all" && talk.dayName !== selectedDay) return false;
-    if (selectedHall !== "all" && talk.venue !== selectedHall) return false;
-    if (selectedType !== "all" && talk.type !== selectedType) return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      const matchTitle = talk.title?.toLowerCase().includes(q);
-      const matchSpeakers = talk.speakers?.some((s) => s.toLowerCase().includes(q));
-      const matchSession = talk.sessionTitle?.toLowerCase().includes(q);
-      if (!matchTitle && !matchSpeakers && !matchSession) return false;
     }
     return true;
   });
@@ -484,7 +468,7 @@ export const Admin: React.FC = () => {
 
       {/* Main Container */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Desktop Sidebar Nav */}
+        {/* Desktop Sidebar Nav (Consolidated 4 Tabs) */}
         <aside className="hidden md:flex w-64 border-r border-slate-200 dark:border-slate-800/80 bg-white/60 dark:bg-slate-900/40 p-4 flex-col justify-between">
           <div className="space-y-1.5">
             <button
@@ -501,23 +485,6 @@ export const Admin: React.FC = () => {
               </div>
               <span className={`text-xs px-2 py-0.5 rounded-full ${activeTab === "sessions" ? "bg-slate-950/20 text-slate-950 font-bold" : "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400"}`}>
                 {stats.totalSessions}
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("talks")}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
-                activeTab === "talks"
-                  ? "bg-teal-500 text-slate-950 shadow-md shadow-teal-500/20 font-bold"
-                  : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Mic className="w-4 h-4" />
-                <span>Talks Explorer</span>
-              </div>
-              <span className={`text-xs px-2 py-0.5 rounded-full ${activeTab === "talks" ? "bg-slate-950/20 text-slate-950 font-bold" : "bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400"}`}>
-                {stats.totalTalks}
               </span>
             </button>
 
@@ -580,7 +547,7 @@ export const Admin: React.FC = () => {
 
         {/* Content Area */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 pb-24 md:pb-8">
-          {/* TAB 1: SESSIONS & NESTED TALKS */}
+          {/* TAB 1: SESSIONS & EMBEDDED TALKS */}
           {activeTab === "sessions" && (
             <div className="space-y-4 sm:space-y-6 max-w-6xl">
               {/* Header with Search and Create Action */}
@@ -588,7 +555,7 @@ export const Admin: React.FC = () => {
                 <div>
                   <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Sessions &amp; Scientific Schedule</h2>
                   <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-0.5">
-                    Sessions with embedded presentation talks, timings, and speakers
+                    Manage conference sessions, halls, and nested presentation talks
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -597,7 +564,7 @@ export const Admin: React.FC = () => {
                       setEditingSession(null);
                       setIsSessionModalOpen(true);
                     }}
-                    className="px-4 py-2.5 rounded-xl text-xs font-bold bg-teal-500 hover:bg-teal-400 text-slate-950 shadow-md shadow-teal-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer font-bold"
+                    className="px-4 py-2.5 rounded-xl text-xs font-bold bg-teal-500 hover:bg-teal-400 text-slate-950 shadow-md shadow-teal-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
                     <span>Create Session</span>
@@ -845,124 +812,7 @@ export const Admin: React.FC = () => {
             </div>
           )}
 
-          {/* TAB 2: TALKS EXPLORER */}
-          {activeTab === "talks" && (
-            <div className="space-y-4 sm:space-y-6 max-w-6xl">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-                <div>
-                  <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Talks Explorer</h2>
-                  <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-0.5">Filter and view individual presentations across all sessions</p>
-                </div>
-                <div className="w-full sm:w-72">
-                  <div className="relative w-full">
-                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      type="text"
-                      placeholder="Search talks or faculty..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-500 shadow-xs"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Filters */}
-              <div className="flex flex-wrap gap-2">
-                <select
-                  value={selectedDay}
-                  onChange={(e) => setSelectedDay(e.target.value)}
-                  className="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-teal-500 cursor-pointer"
-                >
-                  <option value="all">All Days</option>
-                  {days.map((d) => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </select>
-
-                <select
-                  value={selectedHall}
-                  onChange={(e) => setSelectedHall(e.target.value)}
-                  className="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-teal-500 cursor-pointer"
-                >
-                  <option value="all">All Halls</option>
-                  {venues.map((v) => (
-                    <option key={v} value={v}>{v}</option>
-                  ))}
-                </select>
-
-                <select
-                  value={selectedType}
-                  onChange={(e) => setSelectedType(e.target.value)}
-                  className="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-teal-500 cursor-pointer"
-                >
-                  <option value="all">All Types</option>
-                  <option value="talk">Talk</option>
-                  <option value="oration">Oration</option>
-                  <option value="panel">Panel</option>
-                  <option value="workshop">Workshop</option>
-                  <option value="ceremony">Ceremony</option>
-                  <option value="break">Break</option>
-                </select>
-              </div>
-
-              {/* Talks List */}
-              <div className="space-y-2.5 sm:space-y-3">
-                {filteredTalks.map((talk) => (
-                  <div
-                    key={talk.id}
-                    className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4"
-                  >
-                    <div className="flex-1 space-y-1">
-                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-teal-500/10 text-teal-700 dark:text-teal-400 border border-teal-500/20">
-                          {talk.type}
-                        </span>
-                        <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
-                          {talk.startTime} - {talk.endTime}
-                        </span>
-                        <span className="text-xs text-slate-400 dark:text-slate-500">• {talk.venue || talk.sessionVenue}</span>
-                        <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">({talk.sessionTitle})</span>
-                      </div>
-                      <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">{talk.title}</h4>
-                      {talk.speakers && talk.speakers.length > 0 && (
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                          <span className="text-slate-400 dark:text-slate-500">Speakers:</span> {talk.speakers.join(", ")}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2 self-end md:self-center">
-                      <button
-                        onClick={() => {
-                          setTargetSessionId(talk.sessionId);
-                          setEditingItem({ sessionId: talk.sessionId, item: talk });
-                          setIsItemModalOpen(true);
-                        }}
-                        className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all flex items-center gap-1.5 cursor-pointer"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                        <span>Edit</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (confirm(`Delete talk "${talk.title}"?`)) {
-                            deleteTalk(talk.id);
-                            showNotification("Talk deleted.");
-                          }
-                        }}
-                        className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-rose-500/20 text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 transition-all cursor-pointer"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: FACULTY PORTRAIT STUDIO */}
+          {/* TAB 2: FACULTY PORTRAIT STUDIO */}
           {activeTab === "faculty" && (
             <div className="space-y-4 sm:space-y-6 max-w-6xl">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
@@ -1064,7 +914,7 @@ export const Admin: React.FC = () => {
             </div>
           )}
 
-          {/* TAB 4: DASHBOARD STATS */}
+          {/* TAB 3: DASHBOARD STATS */}
           {activeTab === "dashboard" && (
             <div className="space-y-6 sm:space-y-8 max-w-6xl">
               <div>
@@ -1086,7 +936,7 @@ export const Admin: React.FC = () => {
                 <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all">
                   <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1.5 sm:mb-2">
                     <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider">Talks</span>
-                    <Mic className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 dark:text-emerald-400" />
+                    <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 dark:text-emerald-400" />
                   </div>
                   <div className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">{stats.totalTalks}</div>
                   <div className="text-[10px] sm:text-xs text-slate-400 dark:text-slate-500 mt-1">Scheduled slots</div>
@@ -1113,7 +963,7 @@ export const Admin: React.FC = () => {
             </div>
           )}
 
-          {/* TAB 5: SYNC & GOOGLE SHEETS */}
+          {/* TAB 4: SYNC & GOOGLE SHEETS */}
           {activeTab === "sync" && (
             <div className="space-y-6 sm:space-y-8 max-w-4xl">
               <div>
@@ -1204,7 +1054,7 @@ export const Admin: React.FC = () => {
         </main>
       </div>
 
-      {/* MOBILE BOTTOM NAVIGATION BAR */}
+      {/* MOBILE BOTTOM NAVIGATION BAR (Consolidated 4 Tabs) */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 px-2 py-2 flex items-center justify-around shadow-lg">
         <button
           onClick={() => setActiveTab("sessions")}
@@ -1213,17 +1063,7 @@ export const Admin: React.FC = () => {
           }`}
         >
           <Layers className="w-5 h-5" />
-          <span className="text-[10px]">Sessions</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("talks")}
-          className={`flex flex-col items-center gap-1 px-3 py-1 rounded-xl transition-all cursor-pointer ${
-            activeTab === "talks" ? "text-teal-600 dark:text-teal-400 font-bold" : "text-slate-500 dark:text-slate-400"
-          }`}
-        >
-          <Mic className="w-5 h-5" />
-          <span className="text-[10px]">Talks</span>
+          <span className="text-[10px]">Schedule</span>
         </button>
 
         <button
