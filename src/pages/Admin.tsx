@@ -28,7 +28,11 @@ import {
   Moon,
   ChevronDown,
   ChevronUp,
-  Calendar
+  Calendar,
+  Mic,
+  UserCheck,
+  Sliders,
+  MessageSquare
 } from "lucide-react";
 
 export const Admin: React.FC = () => {
@@ -282,9 +286,9 @@ export const Admin: React.FC = () => {
     }
   };
 
-  // CSV Export
+  // CSV Export with all Faculty roles
   const handleExportCsv = () => {
-    const headers = ["Session ID", "Session Title", "Date", "Day", "Venue", "Start Time", "End Time", "Talk Title", "Type", "Speakers", "Chairpersons"];
+    const headers = ["Session ID", "Session Title", "Date", "Day", "Venue", "Start Time", "End Time", "Talk Title", "Type", "Speakers", "Chairpersons", "Moderators", "Panelists", "Case Presenters"];
     const rows = allTalks.map((t) => [
       t.sessionId,
       `"${(t.sessionTitle || "").replace(/"/g, '""')}"`,
@@ -297,6 +301,9 @@ export const Admin: React.FC = () => {
       t.type,
       `"${(t.speakers || []).join("; ").replace(/"/g, '""')}"`,
       `"${(t.chairpersons || []).join("; ").replace(/"/g, '""')}"`,
+      `"${(t.moderators || (t.moderator ? [t.moderator] : [])).join("; ").replace(/"/g, '""')}"`,
+      `"${(t.panelists || []).join("; ").replace(/"/g, '""')}"`,
+      `"${(t.casePresenters || []).join("; ").replace(/"/g, '""')}"`,
     ]);
     const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
     const encodedUri = encodeURI(csvContent);
@@ -414,7 +421,7 @@ export const Admin: React.FC = () => {
     );
   }
 
-  // Filtered sessions (matching search for session title, venue, or nested talk title & speakers)
+  // Filtered sessions (matching search for session title, venue, or nested talk title & any faculty role)
   const filteredSessions = sessions.filter((session) => {
     if (selectedDay !== "all" && session.dayName !== selectedDay) return false;
     if (selectedHall !== "all" && session.venue !== selectedHall) return false;
@@ -425,7 +432,11 @@ export const Admin: React.FC = () => {
       const items = getSessionItems(session);
       const matchTalkTitle = items.some((it) => it.title?.toLowerCase().includes(q));
       const matchSpeaker = items.some((it) => it.speakers?.some((sp) => sp.toLowerCase().includes(q)));
-      if (!matchSessionTitle && !matchVenue && !matchTalkTitle && !matchSpeaker) return false;
+      const matchChair = items.some((it) => it.chairpersons?.some((ch) => ch.toLowerCase().includes(q)));
+      const matchMod = items.some((it) => it.moderators?.some((m) => m.toLowerCase().includes(q)) || it.moderator?.toLowerCase().includes(q));
+      const matchPanel = items.some((it) => it.panelists?.some((p) => p.toLowerCase().includes(q)));
+      const matchCase = items.some((it) => it.casePresenters?.some((cp) => cp.toLowerCase().includes(q)));
+      if (!matchSessionTitle && !matchVenue && !matchTalkTitle && !matchSpeaker && !matchChair && !matchMod && !matchPanel && !matchCase) return false;
     }
     return true;
   });
@@ -600,7 +611,7 @@ export const Admin: React.FC = () => {
                 <div>
                   <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Sessions &amp; Scientific Schedule</h2>
                   <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-0.5">
-                    Click any session to view its presentations. Color-coded by talk format.
+                    Click any session to view its talks, speakers, chairpersons, moderators, and panelists.
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -679,7 +690,7 @@ export const Admin: React.FC = () => {
                 <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Search sessions, talks, or speakers across schedule..."
+                  placeholder="Search sessions, talks, speakers, chairpersons, moderators, panelists..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-teal-500 shadow-xs"
@@ -728,8 +739,9 @@ export const Admin: React.FC = () => {
                             </h3>
 
                             {session.sessionInCharge && session.sessionInCharge.length > 0 && (
-                              <p className="text-xs text-slate-500 dark:text-slate-400">
-                                <span className="font-semibold text-slate-400">Chairpersons / In-Charge:</span> {session.sessionInCharge.join(", ")}
+                              <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 flex-wrap">
+                                <span className="font-semibold text-slate-500 dark:text-slate-400">Session In-Charge / Chairpersons:</span>
+                                <span className="text-slate-800 dark:text-slate-200 font-medium">{session.sessionInCharge.join(", ")}</span>
                               </p>
                             )}
                           </div>
@@ -783,7 +795,7 @@ export const Admin: React.FC = () => {
                           </div>
                         </div>
 
-                        {/* Nested Talks Container with Distinct Type-Based Backgrounds */}
+                        {/* Nested Talks Container with Full Faculty Roles & Distinct Type-Based Backgrounds */}
                         {isExpanded && (
                           <div className="p-3 sm:p-5 space-y-2.5 bg-slate-50/40 dark:bg-slate-900/30">
                             {items.length === 0 ? (
@@ -793,12 +805,14 @@ export const Admin: React.FC = () => {
                             ) : (
                               items.map((item, idx) => {
                                 const style = getTalkStyle(item.type);
+                                const moderators = item.moderators || (item.moderator ? [item.moderator] : []);
+
                                 return (
                                   <div
                                     key={item.id || idx}
-                                    className={`p-3.5 rounded-xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs ${style.cardBg}`}
+                                    className={`p-3.5 sm:p-4 rounded-xl border transition-all flex flex-col md:flex-row md:items-start justify-between gap-3 shadow-xs ${style.cardBg}`}
                                   >
-                                    <div className="flex-1 space-y-1">
+                                    <div className="flex-1 space-y-2">
                                       <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${style.pill}`}>
                                           {item.startTime} - {item.endTime}
@@ -812,16 +826,67 @@ export const Admin: React.FC = () => {
                                         {item.title}
                                       </h4>
 
-                                      {item.speakers && item.speakers.length > 0 && (
-                                        <p className="text-xs text-slate-600 dark:text-slate-300">
-                                          <span className="text-slate-400 dark:text-slate-500 font-medium">Faculty:</span>{" "}
-                                          <span className="font-semibold">{item.speakers.join(", ")}</span>
-                                        </p>
-                                      )}
+                                      {/* Faculty Roles Breakdown (Speakers, Chairpersons, Moderators, Panelists, Case Presenters) */}
+                                      <div className="space-y-1 pt-1 text-xs">
+                                        {/* Speakers */}
+                                        {item.speakers && item.speakers.length > 0 && (
+                                          <div className="flex items-start gap-1.5 text-slate-700 dark:text-slate-200">
+                                            <span className="inline-flex items-center gap-1 font-semibold text-teal-700 dark:text-teal-300 min-w-[90px]">
+                                              <Mic className="w-3 h-3" />
+                                              <span>Speaker(s):</span>
+                                            </span>
+                                            <span className="font-medium">{item.speakers.join(", ")}</span>
+                                          </div>
+                                        )}
+
+                                        {/* Chairpersons */}
+                                        {item.chairpersons && item.chairpersons.length > 0 && (
+                                          <div className="flex items-start gap-1.5 text-slate-700 dark:text-slate-200">
+                                            <span className="inline-flex items-center gap-1 font-semibold text-indigo-700 dark:text-indigo-300 min-w-[90px]">
+                                              <UserCheck className="w-3 h-3" />
+                                              <span>Chairpersons:</span>
+                                            </span>
+                                            <span className="font-medium">{item.chairpersons.join(", ")}</span>
+                                          </div>
+                                        )}
+
+                                        {/* Moderators */}
+                                        {moderators.length > 0 && (
+                                          <div className="flex items-start gap-1.5 text-slate-700 dark:text-slate-200">
+                                            <span className="inline-flex items-center gap-1 font-semibold text-purple-700 dark:text-purple-300 min-w-[90px]">
+                                              <Sliders className="w-3 h-3" />
+                                              <span>Moderator(s):</span>
+                                            </span>
+                                            <span className="font-medium">{moderators.join(", ")}</span>
+                                          </div>
+                                        )}
+
+                                        {/* Panelists */}
+                                        {item.panelists && item.panelists.length > 0 && (
+                                          <div className="flex items-start gap-1.5 text-slate-700 dark:text-slate-200">
+                                            <span className="inline-flex items-center gap-1 font-semibold text-amber-700 dark:text-amber-300 min-w-[90px]">
+                                              <Users className="w-3 h-3" />
+                                              <span>Panelists:</span>
+                                            </span>
+                                            <span className="font-medium">{item.panelists.join(", ")}</span>
+                                          </div>
+                                        )}
+
+                                        {/* Case Presenters */}
+                                        {item.casePresenters && item.casePresenters.length > 0 && (
+                                          <div className="flex items-start gap-1.5 text-slate-700 dark:text-slate-200">
+                                            <span className="inline-flex items-center gap-1 font-semibold text-sky-700 dark:text-sky-300 min-w-[90px]">
+                                              <MessageSquare className="w-3 h-3" />
+                                              <span>Case Presenter:</span>
+                                            </span>
+                                            <span className="font-medium">{item.casePresenters.join(", ")}</span>
+                                          </div>
+                                        )}
+                                      </div>
                                     </div>
 
                                     {/* Talk Action Buttons */}
-                                    <div className="flex items-center gap-1.5 self-end md:self-center">
+                                    <div className="flex items-center gap-1.5 self-end md:self-center mt-2 md:mt-0">
                                       <button
                                         onClick={() => {
                                           setTargetSessionId(session.id);
@@ -1168,9 +1233,11 @@ export const Admin: React.FC = () => {
                 const dayName = (form.elements.namedItem("dayName") as HTMLInputElement).value;
                 const startTime = (form.elements.namedItem("startTime") as HTMLInputElement).value;
                 const endTime = (form.elements.namedItem("endTime") as HTMLInputElement).value;
+                const sessionInChargeRaw = (form.elements.namedItem("sessionInCharge") as HTMLInputElement).value;
+                const sessionInCharge = sessionInChargeRaw ? sessionInChargeRaw.split(",").map((s) => s.trim()).filter(Boolean) : [];
 
                 if (editingSession) {
-                  updateSession(editingSession.id, { title, venue, date, dayName, startTime, endTime });
+                  updateSession(editingSession.id, { title, venue, date, dayName, startTime, endTime, sessionInCharge });
                   showNotification("Session updated!");
                 } else {
                   const newId = `session-${Date.now()}`;
@@ -1184,6 +1251,7 @@ export const Admin: React.FC = () => {
                     dayDisplay: dayName === "Friday" ? "09 October 2026" : dayName === "Saturday" ? "10 October 2026" : "11 October 2026",
                     startTime,
                     endTime,
+                    sessionInCharge,
                     sections: [{ id: `sec-${Date.now()}`, title: "Main Section", items: [] }],
                   });
                   showNotification("New session created!");
@@ -1259,6 +1327,17 @@ export const Admin: React.FC = () => {
                 </div>
               </div>
 
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Session In-Charge / Chairpersons (comma-separated)</label>
+                <input
+                  type="text"
+                  name="sessionInCharge"
+                  defaultValue={editingSession?.sessionInCharge?.join(", ") || ""}
+                  placeholder="e.g. Dr. A. Kumar, Dr. B. Sharma"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm"
+                />
+              </div>
+
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
@@ -1279,12 +1358,12 @@ export const Admin: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL 2: CREATE / EDIT TALK ITEM */}
+      {/* MODAL 2: CREATE / EDIT TALK ITEM (With Speakers, Chairpersons, Moderators, Panelists, Case Presenters) */}
       {isItemModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/60 dark:bg-slate-950/80 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
-              <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">{editingItem ? "Edit Talk / Item" : "Add Talk to Session"}</h3>
+              <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">{editingItem ? "Edit Presentation / Talk" : "Add Talk to Session"}</h3>
               <button onClick={() => setIsItemModalOpen(false)} className="p-1 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
@@ -1298,12 +1377,33 @@ export const Admin: React.FC = () => {
                 const startTime = (form.elements.namedItem("startTime") as HTMLInputElement).value;
                 const endTime = (form.elements.namedItem("endTime") as HTMLInputElement).value;
                 const type = (form.elements.namedItem("type") as HTMLSelectElement).value as ProgrammeItemType;
-                const speakersRaw = (form.elements.namedItem("speakers") as HTMLInputElement).value;
-                const speakers = speakersRaw ? speakersRaw.split(",").map((s) => s.trim()).filter(Boolean) : [];
+                
+                // Parse comma-separated role fields
+                const parseList = (fieldName: string) => {
+                  const val = (form.elements.namedItem(fieldName) as HTMLInputElement)?.value;
+                  return val ? val.split(",").map((s) => s.trim()).filter(Boolean) : [];
+                };
+
+                const speakers = parseList("speakers");
+                const chairpersons = parseList("chairpersons");
+                const moderators = parseList("moderators");
+                const panelists = parseList("panelists");
+                const casePresenters = parseList("casePresenters");
 
                 if (editingItem) {
-                  updateTalk(editingItem.item.id, { title, startTime, endTime, type, speakers });
-                  showNotification("Item updated!");
+                  updateTalk(editingItem.item.id, {
+                    title,
+                    startTime,
+                    endTime,
+                    type,
+                    speakers,
+                    chairpersons,
+                    moderators,
+                    moderator: moderators[0] || undefined,
+                    panelists,
+                    casePresenters,
+                  });
+                  showNotification("Talk updated!");
                 } else if (targetSessionId) {
                   const targetSession = sessions.find((s) => s.id === targetSessionId);
                   const newItemId = `item-${Date.now()}`;
@@ -1319,15 +1419,20 @@ export const Admin: React.FC = () => {
                     endTime,
                     type,
                     speakers,
+                    chairpersons,
+                    moderators,
+                    moderator: moderators[0] || undefined,
+                    panelists,
+                    casePresenters,
                   });
                   showNotification("Talk added to session!");
                 }
                 setIsItemModalOpen(false);
               }}
-              className="space-y-3.5 sm:space-y-4"
+              className="space-y-3 sm:space-y-3.5"
             >
               <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Talk Title</label>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Talk / Presentation Title</label>
                 <input
                   type="text"
                   name="title"
@@ -1339,18 +1444,18 @@ export const Admin: React.FC = () => {
 
               <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Type</label>
+                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Format Type</label>
                   <select
                     name="type"
                     defaultValue={editingItem?.item.type || "talk"}
                     className="w-full px-2 sm:px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs sm:text-sm cursor-pointer"
                   >
-                    <option value="talk">Talk</option>
+                    <option value="talk">Talk / Presentation</option>
                     <option value="oration">Oration</option>
-                    <option value="panel">Panel</option>
+                    <option value="panel">Panel Discussion</option>
                     <option value="workshop">Workshop</option>
-                    <option value="ceremony">Ceremony</option>
-                    <option value="break">Break</option>
+                    <option value="ceremony">Ceremony / Keynote</option>
+                    <option value="break">Break / Lunch</option>
                   </select>
                 </div>
                 <div>
@@ -1375,18 +1480,82 @@ export const Admin: React.FC = () => {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Faculty Speakers (comma-separated)</label>
-                <input
-                  type="text"
-                  name="speakers"
-                  defaultValue={editingItem?.item.speakers?.join(", ") || ""}
-                  placeholder="e.g. Dr. Jane Doe, Dr. John Smith"
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm"
-                />
+              {/* Faculty Roles Inputs */}
+              <div className="pt-1 border-t border-slate-200 dark:border-slate-800/80 space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-teal-700 dark:text-teal-400 mb-1 flex items-center gap-1">
+                    <Mic className="w-3.5 h-3.5" />
+                    <span>Faculty Speakers (comma-separated)</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="speakers"
+                    defaultValue={editingItem?.item.speakers?.join(", ") || ""}
+                    placeholder="e.g. Dr. John Doe, Dr. Jane Smith"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs sm:text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-indigo-700 dark:text-indigo-400 mb-1 flex items-center gap-1">
+                    <UserCheck className="w-3.5 h-3.5" />
+                    <span>Chairpersons (comma-separated)</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="chairpersons"
+                    defaultValue={editingItem?.item.chairpersons?.join(", ") || ""}
+                    placeholder="e.g. Dr. Rajesh Kumar, Dr. Sarah Lee"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs sm:text-sm"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-purple-700 dark:text-purple-400 mb-1 flex items-center gap-1">
+                      <Sliders className="w-3.5 h-3.5" />
+                      <span>Moderator(s)</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="moderators"
+                      defaultValue={(editingItem?.item.moderators || (editingItem?.item.moderator ? [editingItem.item.moderator] : []))?.join(", ") || ""}
+                      placeholder="e.g. Dr. Amit Sharma"
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs sm:text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-amber-700 dark:text-amber-400 mb-1 flex items-center gap-1">
+                      <Users className="w-3.5 h-3.5" />
+                      <span>Panelists</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="panelists"
+                      defaultValue={editingItem?.item.panelists?.join(", ") || ""}
+                      placeholder="e.g. Dr. V. Rao, Dr. K. Patel"
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs sm:text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-sky-700 dark:text-sky-400 mb-1 flex items-center gap-1">
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    <span>Case Presenter(s)</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="casePresenters"
+                    defaultValue={editingItem?.item.casePresenters?.join(", ") || ""}
+                    placeholder="e.g. Dr. R. Gupta"
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs sm:text-sm"
+                  />
+                </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex justify-end gap-2 pt-3">
                 <button
                   type="button"
                   onClick={() => setIsItemModalOpen(false)}
