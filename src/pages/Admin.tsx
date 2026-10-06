@@ -73,7 +73,18 @@ export const Admin: React.FC = () => {
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
 
   const toggleSessionExpand = (sessionId: string) => {
-    setExpandedSessionId((prev) => (prev === sessionId ? null : sessionId));
+    setExpandedSessionId((prev) => {
+      const next = prev === sessionId ? null : sessionId;
+      if (next) {
+        setTimeout(() => {
+          const el = document.getElementById(`session-card-${next}`);
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        }, 100);
+      }
+      return next;
+    });
   };
 
   const collapseAllSessions = () => setExpandedSessionId(null);
@@ -445,7 +456,7 @@ export const Admin: React.FC = () => {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col transition-colors duration-200 font-sans">
+    <div className="h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col overflow-hidden transition-colors duration-200 font-sans">
       {/* Toast Notification */}
       {notification && (
         <div
@@ -516,7 +527,7 @@ export const Admin: React.FC = () => {
       {/* Main Container */}
       <div className="flex-1 flex overflow-hidden">
         {/* Desktop Sidebar Nav (Consolidated 4 Tabs) */}
-        <aside className="hidden md:flex w-64 border-r border-slate-200 dark:border-slate-800/80 bg-white/60 dark:bg-slate-900/40 p-4 flex-col justify-between">
+        <aside className="hidden md:flex w-64 h-full flex-shrink-0 border-r border-slate-200 dark:border-slate-800/80 bg-white/60 dark:bg-slate-900/40 p-4 flex-col justify-between overflow-y-auto">
           <div className="space-y-1.5">
             <button
               onClick={() => setActiveTab("sessions")}
@@ -696,7 +707,8 @@ export const Admin: React.FC = () => {
                     return (
                       <div
                         key={session.id}
-                        className="rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800/90 shadow-xs overflow-hidden transition-all"
+                        id={`session-card-${session.id}`}
+                        className="rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800/90 shadow-xs overflow-hidden transition-all scroll-mt-20"
                       >
                         {/* Session Header Card (Clickable to toggle expand) */}
                         <div
