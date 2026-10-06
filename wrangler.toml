@@ -1,0 +1,16 @@
+name = "isot-2026-admin"
+compatibility_date = "2024-09-23"
+pages_build_output_dir = "./dist"
+
+# Cloudflare D1 Database Binding
+# In Cloudflare Dashboard: Pages > Settings > Functions > D1 database bindings > Variable name: DB
+[[d1_databases]]
+binding = "DB"
+database_name = "isot2026"
+database_id = "ea1748cd-971b-475b-92b1-4a2e0c95f211"
+
+# Cloudflare R2 Storage Bucket Binding
+# In Cloudflare Dashboard: Pages > Settings > Functions > R2 bucket bindings > Variable name: BUCKET, R2 bucket: isot-2026
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "isot-2026-admin"
