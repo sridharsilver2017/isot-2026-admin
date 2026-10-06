@@ -239,9 +239,21 @@ export const Admin: React.FC = () => {
     return { totalSessions, totalTalks, totalSpeakers, speakersWithPhotos, photoCoverage };
   }, [sessions, allTalks, speakers, speakerPhotos]);
 
-  // Unique venues and days
-  const venues = useMemo(() => Array.from(new Set(sessions.map((s) => s.venue).filter(Boolean))), [sessions]);
+  // Unique venues and days (venues filtered to only those with sessions on selected day)
+  const venues = useMemo(() => {
+    const relevant = selectedDay === "all"
+      ? sessions
+      : sessions.filter((s) => s.dayName === selectedDay || s.date === selectedDay);
+    return Array.from(new Set(relevant.map((s) => s.venue).filter(Boolean)));
+  }, [sessions, selectedDay]);
+
   const days = useMemo(() => Array.from(new Set(sessions.map((s) => s.dayName).filter(Boolean))), [sessions]);
+
+  useEffect(() => {
+    if (selectedHall !== "all" && !venues.includes(selectedHall)) {
+      setSelectedHall("all");
+    }
+  }, [venues, selectedHall]);
 
   // Login handler (Password-only)
   const handleLogin = async (e: React.FormEvent) => {
