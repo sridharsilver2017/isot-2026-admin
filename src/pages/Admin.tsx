@@ -85,7 +85,7 @@ export const Admin: React.FC = () => {
   useEffect(() => {
     const fetchPhotos = async () => {
       try {
-        const res = await fetch("/api/speakers");
+        const res = await fetch("/api/speaker-images");
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data)) {
