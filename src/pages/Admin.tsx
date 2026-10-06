@@ -69,23 +69,14 @@ export const Admin: React.FC = () => {
   const [selectedHall, setSelectedHall] = useState<string>("all");
   const [facultyPhotoFilter, setFacultyPhotoFilter] = useState<"all" | "with_photo" | "without_photo">("all");
 
-  // Expanded sessions tracking: Default ALL COLLAPSED (empty set)
-  const [expandedSessionIds, setExpandedSessionIds] = useState<Set<string>>(new Set());
+  // Single-accordion state: opening one session automatically closes others
+  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
 
   const toggleSessionExpand = (sessionId: string) => {
-    setExpandedSessionIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(sessionId)) {
-        next.delete(sessionId);
-      } else {
-        next.add(sessionId);
-      }
-      return next;
-    });
+    setExpandedSessionId((prev) => (prev === sessionId ? null : sessionId));
   };
 
-  const expandAllSessions = () => setExpandedSessionIds(new Set(sessions.map((s) => s.id)));
-  const collapseAllSessions = () => setExpandedSessionIds(new Set());
+  const collapseAllSessions = () => setExpandedSessionId(null);
 
   // Distinct background & border styles per talk type
   const getTalkStyle = (type: string) => {
@@ -668,20 +659,14 @@ export const Admin: React.FC = () => {
                     ))}
                   </select>
 
-                  <div className="flex items-center gap-1 text-xs">
-                    <button
-                      onClick={expandAllSessions}
-                      className="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400 font-semibold cursor-pointer border border-slate-200 dark:border-slate-700"
-                    >
-                      Expand All
-                    </button>
+                  {expandedSessionId && (
                     <button
                       onClick={collapseAllSessions}
                       className="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400 font-semibold cursor-pointer border border-slate-200 dark:border-slate-700"
                     >
-                      Collapse All
+                      Collapse
                     </button>
-                  </div>
+                  )}
                 </div>
               </div>
 
@@ -706,7 +691,7 @@ export const Admin: React.FC = () => {
                 ) : (
                   filteredSessions.map((session) => {
                     const items = getSessionItems(session);
-                    const isExpanded = expandedSessionIds.has(session.id);
+                    const isExpanded = expandedSessionId === session.id;
 
                     return (
                       <div
