@@ -688,12 +688,20 @@ export const Admin: React.FC = () => {
                       <div
                         key={session.id}
                         id={`session-card-${session.id}`}
-                        className="rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800/90 shadow-xs overflow-hidden transition-all scroll-mt-20"
+                        className={`rounded-2xl border transition-all duration-200 overflow-hidden scroll-mt-20 ${
+                          isExpanded
+                            ? "bg-slate-100/80 dark:bg-slate-900/95 border-teal-500/40 dark:border-teal-500/30 shadow-md ring-1 ring-teal-500/20"
+                            : "bg-slate-50/90 dark:bg-slate-900/60 border-slate-200/90 dark:border-slate-800 hover:bg-slate-100/70 dark:hover:bg-slate-850/60 hover:border-slate-300 dark:hover:border-slate-700 shadow-xs"
+                        }`}
                       >
                         {/* Session Header Card (Clickable to toggle expand) */}
                         <div
                           onClick={() => toggleSessionExpand(session.id)}
-                          className="p-4 sm:p-5 bg-slate-50/70 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-800/80 flex flex-col md:flex-row md:items-center justify-between gap-3 cursor-pointer hover:bg-slate-100/60 dark:hover:bg-slate-800/70 transition-all select-none"
+                          className={`p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-3 cursor-pointer select-none transition-all ${
+                            isExpanded
+                              ? "bg-slate-200/60 dark:bg-slate-800/70 border-b border-slate-200 dark:border-slate-800"
+                              : "bg-transparent"
+                          }`}
                         >
                           <div className="flex-1 space-y-1">
                             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
