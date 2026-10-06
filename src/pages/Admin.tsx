@@ -65,11 +65,11 @@ export const Admin: React.FC = () => {
   const [selectedHall, setSelectedHall] = useState<string>("all");
   const [facultyPhotoFilter, setFacultyPhotoFilter] = useState<"all" | "with_photo" | "without_photo">("all");
 
-  // Expanded sessions tracking
-  const [collapsedSessionIds, setCollapsedSessionIds] = useState<Set<string>>(new Set());
+  // Expanded sessions tracking: Default ALL COLLAPSED (empty set)
+  const [expandedSessionIds, setExpandedSessionIds] = useState<Set<string>>(new Set());
 
-  const toggleSessionCollapse = (sessionId: string) => {
-    setCollapsedSessionIds((prev) => {
+  const toggleSessionExpand = (sessionId: string) => {
+    setExpandedSessionIds((prev) => {
       const next = new Set(prev);
       if (next.has(sessionId)) {
         next.delete(sessionId);
@@ -80,8 +80,53 @@ export const Admin: React.FC = () => {
     });
   };
 
-  const expandAllSessions = () => setCollapsedSessionIds(new Set());
-  const collapseAllSessions = () => setCollapsedSessionIds(new Set(sessions.map((s) => s.id)));
+  const expandAllSessions = () => setExpandedSessionIds(new Set(sessions.map((s) => s.id)));
+  const collapseAllSessions = () => setExpandedSessionIds(new Set());
+
+  // Distinct background & border styles per talk type
+  const getTalkStyle = (type: string) => {
+    switch (type?.toLowerCase()) {
+      case "oration":
+        return {
+          cardBg: "bg-purple-50/90 dark:bg-purple-950/35 border-purple-200/90 dark:border-purple-800/70 hover:border-purple-400 dark:hover:border-purple-600",
+          badge: "bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-300 border-purple-300/80 dark:border-purple-700",
+          pill: "bg-purple-200/80 dark:bg-purple-900/80 text-purple-950 dark:text-purple-200",
+        };
+      case "panel":
+        return {
+          cardBg: "bg-amber-50/90 dark:bg-amber-950/35 border-amber-200/90 dark:border-amber-800/70 hover:border-amber-400 dark:hover:border-amber-600",
+          badge: "bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 border-amber-300/80 dark:border-amber-700",
+          pill: "bg-amber-200/80 dark:bg-amber-900/80 text-amber-950 dark:text-amber-200",
+        };
+      case "workshop":
+        return {
+          cardBg: "bg-sky-50/90 dark:bg-sky-950/35 border-sky-200/90 dark:border-sky-800/70 hover:border-sky-400 dark:hover:border-sky-600",
+          badge: "bg-sky-100 dark:bg-sky-900/60 text-sky-800 dark:text-sky-300 border-sky-300/80 dark:border-sky-700",
+          pill: "bg-sky-200/80 dark:bg-sky-900/80 text-sky-950 dark:text-sky-200",
+        };
+      case "ceremony":
+        return {
+          cardBg: "bg-rose-50/90 dark:bg-rose-950/35 border-rose-200/90 dark:border-rose-800/70 hover:border-rose-400 dark:hover:border-rose-600",
+          badge: "bg-rose-100 dark:bg-rose-900/60 text-rose-800 dark:text-rose-300 border-rose-300/80 dark:border-rose-700",
+          pill: "bg-rose-200/80 dark:bg-rose-900/80 text-rose-950 dark:text-rose-200",
+        };
+      case "break":
+      case "lunch":
+      case "dinner":
+      case "registration":
+        return {
+          cardBg: "bg-slate-100/90 dark:bg-slate-800/60 border-slate-300/80 dark:border-slate-700 hover:border-slate-400",
+          badge: "bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-300 border-slate-300 dark:border-slate-600",
+          pill: "bg-slate-300/80 dark:bg-slate-700 text-slate-900 dark:text-slate-200",
+        };
+      default: // default standard talk
+        return {
+          cardBg: "bg-teal-50/85 dark:bg-teal-950/30 border-teal-200/90 dark:border-teal-800/70 hover:border-teal-400 dark:hover:border-teal-600",
+          badge: "bg-teal-100 dark:bg-teal-900/60 text-teal-800 dark:text-teal-300 border-teal-300/80 dark:border-teal-700",
+          pill: "bg-teal-200/80 dark:bg-teal-900/80 text-teal-950 dark:text-teal-200",
+        };
+    }
+  };
 
   // Notifications
   const [notification, setNotification] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
@@ -555,7 +600,7 @@ export const Admin: React.FC = () => {
                 <div>
                   <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">Sessions &amp; Scientific Schedule</h2>
                   <p className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm mt-0.5">
-                    Manage conference sessions, halls, and nested presentation talks
+                    Click any session to view its presentations. Color-coded by talk format.
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -615,14 +660,13 @@ export const Admin: React.FC = () => {
                   <div className="flex items-center gap-1 text-xs">
                     <button
                       onClick={expandAllSessions}
-                      className="px-2 py-1 rounded-lg text-[11px] text-slate-500 hover:text-teal-600 dark:hover:text-teal-400 font-medium cursor-pointer"
+                      className="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400 font-semibold cursor-pointer border border-slate-200 dark:border-slate-700"
                     >
                       Expand All
                     </button>
-                    <span className="text-slate-300 dark:text-slate-700">•</span>
                     <button
                       onClick={collapseAllSessions}
-                      className="px-2 py-1 rounded-lg text-[11px] text-slate-500 hover:text-teal-600 dark:hover:text-teal-400 font-medium cursor-pointer"
+                      className="px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs text-slate-600 dark:text-slate-300 hover:text-teal-600 dark:hover:text-teal-400 font-semibold cursor-pointer border border-slate-200 dark:border-slate-700"
                     >
                       Collapse All
                     </button>
@@ -642,7 +686,7 @@ export const Admin: React.FC = () => {
                 />
               </div>
 
-              {/* Sessions List with Nested Talks */}
+              {/* Sessions List with Nested Talks (Collapsed by default) */}
               <div className="space-y-4">
                 {filteredSessions.length === 0 ? (
                   <div className="p-12 text-center rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 text-slate-400">
@@ -651,15 +695,18 @@ export const Admin: React.FC = () => {
                 ) : (
                   filteredSessions.map((session) => {
                     const items = getSessionItems(session);
-                    const isCollapsed = collapsedSessionIds.has(session.id);
+                    const isExpanded = expandedSessionIds.has(session.id);
 
                     return (
                       <div
                         key={session.id}
                         className="rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800/90 shadow-xs overflow-hidden transition-all"
                       >
-                        {/* Session Header Card */}
-                        <div className="p-4 sm:p-5 bg-slate-50/70 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-800/80 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                        {/* Session Header Card (Clickable to toggle expand) */}
+                        <div
+                          onClick={() => toggleSessionExpand(session.id)}
+                          className="p-4 sm:p-5 bg-slate-50/70 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-800/80 flex flex-col md:flex-row md:items-center justify-between gap-3 cursor-pointer hover:bg-slate-100/60 dark:hover:bg-slate-800/70 transition-all select-none"
+                        >
                           <div className="flex-1 space-y-1">
                             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                               <span className="px-2.5 py-0.5 text-[10px] font-bold rounded-full bg-teal-500/10 text-teal-700 dark:text-teal-400 border border-teal-500/20">
@@ -688,7 +735,7 @@ export const Admin: React.FC = () => {
                           </div>
 
                           {/* Session Action Controls */}
-                          <div className="flex items-center gap-1.5 self-end md:self-center">
+                          <div className="flex items-center gap-1.5 self-end md:self-center" onClick={(e) => e.stopPropagation()}>
                             <button
                               onClick={() => {
                                 setTargetSessionId(session.id);
@@ -727,80 +774,83 @@ export const Admin: React.FC = () => {
                             </button>
 
                             <button
-                              onClick={() => toggleSessionCollapse(session.id)}
+                              onClick={() => toggleSessionExpand(session.id)}
                               className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 transition-all cursor-pointer border border-slate-200 dark:border-slate-700 ml-1"
-                              title={isCollapsed ? "Expand Talks" : "Collapse Talks"}
+                              title={isExpanded ? "Collapse Talks" : "Expand Talks"}
                             >
-                              {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                              {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                             </button>
                           </div>
                         </div>
 
-                        {/* Nested Talks Container under this Session */}
-                        {!isCollapsed && (
-                          <div className="p-3 sm:p-5 space-y-2.5 bg-white dark:bg-slate-900/30">
+                        {/* Nested Talks Container with Distinct Type-Based Backgrounds */}
+                        {isExpanded && (
+                          <div className="p-3 sm:p-5 space-y-2.5 bg-slate-50/40 dark:bg-slate-900/30">
                             {items.length === 0 ? (
                               <div className="p-6 text-center rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-dashed border-slate-200 dark:border-slate-800 text-slate-400 text-xs">
                                 No talks scheduled in this session yet. Click <span className="text-teal-600 dark:text-teal-400 font-semibold cursor-pointer" onClick={() => { setTargetSessionId(session.id); setEditingItem(null); setIsItemModalOpen(true); }}>"+ Add Talk"</span> to add one.
                               </div>
                             ) : (
-                              items.map((item, idx) => (
-                                <div
-                                  key={item.id || idx}
-                                  className="p-3.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 hover:border-teal-500/40 dark:hover:border-teal-500/40 transition-all flex flex-col md:flex-row md:items-center justify-between gap-3 group"
-                                >
-                                  <div className="flex-1 space-y-1">
-                                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-200 dark:bg-slate-700/80 text-slate-800 dark:text-slate-200 font-mono">
-                                        {item.startTime} - {item.endTime}
-                                      </span>
-                                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-teal-500/10 text-teal-700 dark:text-teal-400 border border-teal-500/20">
-                                        {item.type}
-                                      </span>
+                              items.map((item, idx) => {
+                                const style = getTalkStyle(item.type);
+                                return (
+                                  <div
+                                    key={item.id || idx}
+                                    className={`p-3.5 rounded-xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs ${style.cardBg}`}
+                                  >
+                                    <div className="flex-1 space-y-1">
+                                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${style.pill}`}>
+                                          {item.startTime} - {item.endTime}
+                                        </span>
+                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${style.badge}`}>
+                                          {item.type}
+                                        </span>
+                                      </div>
+
+                                      <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                                        {item.title}
+                                      </h4>
+
+                                      {item.speakers && item.speakers.length > 0 && (
+                                        <p className="text-xs text-slate-600 dark:text-slate-300">
+                                          <span className="text-slate-400 dark:text-slate-500 font-medium">Faculty:</span>{" "}
+                                          <span className="font-semibold">{item.speakers.join(", ")}</span>
+                                        </p>
+                                      )}
                                     </div>
 
-                                    <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
-                                      {item.title}
-                                    </h4>
+                                    {/* Talk Action Buttons */}
+                                    <div className="flex items-center gap-1.5 self-end md:self-center">
+                                      <button
+                                        onClick={() => {
+                                          setTargetSessionId(session.id);
+                                          setEditingItem({ sessionId: session.id, item });
+                                          setIsItemModalOpen(true);
+                                        }}
+                                        className="px-2.5 py-1.5 rounded-lg bg-white/90 dark:bg-slate-800/90 hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer border border-slate-200 dark:border-slate-700 shadow-2xs"
+                                        title="Edit Talk"
+                                      >
+                                        <Edit2 className="w-3 h-3" />
+                                        <span>Edit</span>
+                                      </button>
 
-                                    {item.speakers && item.speakers.length > 0 && (
-                                      <p className="text-xs text-slate-500 dark:text-slate-400">
-                                        <span className="text-slate-400 dark:text-slate-500 font-medium">Speakers:</span>{" "}
-                                        <span className="text-slate-800 dark:text-slate-200 font-semibold">{item.speakers.join(", ")}</span>
-                                      </p>
-                                    )}
+                                      <button
+                                        onClick={() => {
+                                          if (confirm(`Delete talk "${item.title}"?`)) {
+                                            deleteTalk(item.id);
+                                            showNotification("Talk removed.");
+                                          }
+                                        }}
+                                        className="p-1.5 rounded-lg bg-white/90 dark:bg-slate-800/90 hover:bg-rose-500/20 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-all cursor-pointer border border-slate-200 dark:border-slate-700 shadow-2xs"
+                                        title="Delete Talk"
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                      </button>
+                                    </div>
                                   </div>
-
-                                  {/* Talk Action Buttons */}
-                                  <div className="flex items-center gap-1.5 self-end md:self-center">
-                                    <button
-                                      onClick={() => {
-                                        setTargetSessionId(session.id);
-                                        setEditingItem({ sessionId: session.id, item });
-                                        setIsItemModalOpen(true);
-                                      }}
-                                      className="px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer border border-slate-200 dark:border-slate-700"
-                                      title="Edit Talk"
-                                    >
-                                      <Edit2 className="w-3 h-3" />
-                                      <span>Edit</span>
-                                    </button>
-
-                                    <button
-                                      onClick={() => {
-                                        if (confirm(`Delete talk "${item.title}"?`)) {
-                                          deleteTalk(item.id);
-                                          showNotification("Talk removed.");
-                                        }
-                                      }}
-                                      className="p-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-all cursor-pointer border border-slate-200 dark:border-slate-700"
-                                      title="Delete Talk"
-                                    >
-                                      <Trash2 className="w-3 h-3" />
-                                    </button>
-                                  </div>
-                                </div>
-                              ))
+                                );
+                              })
                             )}
                           </div>
                         )}
