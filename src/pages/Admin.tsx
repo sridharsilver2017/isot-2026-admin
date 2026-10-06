@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { useProgrammeStore, slugify } from "../store/programmeStore";
+import { useProgrammeStore } from "../store/programmeStore";
 import { useAuthStore } from "../store/authStore";
 import { useScheduleStore } from "../store/scheduleStore";
 import { Session, ProgrammeItem, ProgrammeItemType, getSessionItems, Speaker } from "../types/programme";
+import { getSpeakerPhoto } from "../utils/speakerImages";
 import {
   Database,
   RefreshCw,
@@ -54,6 +55,9 @@ export const Admin: React.FC = () => {
     syncError,
     lastSynced,
     isDbConnected,
+    speakerPhotos = {},
+    fetchSpeakerPhotos,
+    uploadSpeakerPhoto,
   } = useProgrammeStore();
 
   // Active navigation tab (Consolidated 4-tab studio)
@@ -154,35 +158,13 @@ export const Admin: React.FC = () => {
   const [selectedSpeakerForUpload, setSelectedSpeakerForUpload] = useState<Speaker | null>(null);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
-  const [photoKeys, setPhotoKeys] = useState<Set<string>>(new Set());
 
-  // Check R2 Photo availability
+  // Fetch dynamic R2/D1 photos on auth
   useEffect(() => {
-    const fetchPhotos = async () => {
-      try {
-        const res = await fetch("/api/speaker-images");
-        if (res.ok) {
-          const data = await res.json();
-          const keys = new Set<string>();
-          if (data.images && typeof data.images === "object") {
-            Object.keys(data.images).forEach((id) => keys.add(id));
-          } else if (Array.isArray(data)) {
-            data.forEach((sp: { id?: string; name?: string; imageKey?: string }) => {
-              if (sp.id) keys.add(sp.id);
-              if (sp.imageKey) keys.add(sp.imageKey);
-              if (sp.name) keys.add(slugify(sp.name));
-            });
-          }
-          setPhotoKeys(keys);
-        }
-      } catch {
-        // quiet fallback
-      }
-    };
-    if (isAuthenticated) {
-      fetchPhotos();
+    if (isAuthenticated && fetchSpeakerPhotos) {
+      fetchSpeakerPhotos().catch(() => {});
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, fetchSpeakerPhotos]);
 
   // Derived statistics
   const speakers = useMemo(() => getSpeakers(), [sessions, getSpeakers]);
@@ -195,10 +177,10 @@ export const Admin: React.FC = () => {
     const totalSessions = sessions.length;
     const totalTalks = allTalks.length;
     const totalSpeakers = speakers.length;
-    const speakersWithPhotos = speakers.filter((sp) => photoKeys.has(sp.id) || photoKeys.has(slugify(sp.name))).length;
+    const speakersWithPhotos = speakers.filter((sp) => Boolean(getSpeakerPhoto(sp.name, speakerPhotos))).length;
     const photoCoverage = totalSpeakers > 0 ? Math.round((speakersWithPhotos / totalSpeakers) * 100) : 0;
     return { totalSessions, totalTalks, totalSpeakers, speakersWithPhotos, photoCoverage };
-  }, [sessions, allTalks, speakers, photoKeys]);
+  }, [sessions, allTalks, speakers, speakerPhotos]);
 
   // Unique venues and days
   const venues = useMemo(() => Array.from(new Set(sessions.map((s) => s.venue).filter(Boolean))), [sessions]);
@@ -257,30 +239,27 @@ export const Admin: React.FC = () => {
     setIsUploadingPhoto(true);
 
     try {
-      const token = localStorage.getItem("isot2026-admin-auth-token");
-      const res = await fetch("/api/upload-speaker-image", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          speakerId: selectedSpeakerForUpload.id,
-          speakerName: selectedSpeakerForUpload.name,
-          imageData: previewImageUrl,
-        }),
-      });
-
-      if (res.ok) {
-        showNotification(`Uploaded photo for ${selectedSpeakerForUpload.name} directly to Cloudflare R2!`);
-        setPhotoKeys((prev) => new Set([...prev, selectedSpeakerForUpload.id, slugify(selectedSpeakerForUpload.name)]));
-        setIsUploadModalOpen(false);
-        setSelectedSpeakerForUpload(null);
-        setPreviewImageUrl(null);
+      if (uploadSpeakerPhoto) {
+        await uploadSpeakerPhoto(selectedSpeakerForUpload.id, previewImageUrl);
       } else {
-        const err = await res.json().catch(() => ({}));
-        showNotification(err.error || "Failed to upload photo to R2.", "error");
+        const token = localStorage.getItem("isot2026-admin-auth-token");
+        await fetch("/api/speaker-images", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            speakerId: selectedSpeakerForUpload.id,
+            imageUrl: previewImageUrl,
+          }),
+        });
       }
+
+      showNotification(`Uploaded portrait for ${selectedSpeakerForUpload.name}!`);
+      setIsUploadModalOpen(false);
+      setSelectedSpeakerForUpload(null);
+      setPreviewImageUrl(null);
     } catch {
       showNotification("Upload failed due to a network error.", "error");
     } finally {
@@ -445,7 +424,8 @@ export const Admin: React.FC = () => {
 
   // Filtered faculty
   const filteredFaculty = speakers.filter((sp) => {
-    const hasPhoto = photoKeys.has(sp.id) || photoKeys.has(slugify(sp.name));
+    const photoUrl = getSpeakerPhoto(sp.name, speakerPhotos);
+    const hasPhoto = Boolean(photoUrl);
     if (facultyPhotoFilter === "with_photo" && !hasPhoto) return false;
     if (facultyPhotoFilter === "without_photo" && hasPhoto) return false;
     if (searchQuery) {
@@ -958,27 +938,32 @@ export const Admin: React.FC = () => {
               {/* Faculty Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
                 {filteredFaculty.map((sp) => {
-                  const hasPhoto = photoKeys.has(sp.id) || photoKeys.has(slugify(sp.name));
-                  const imageUrl = `/api/speaker-image/${sp.id}`;
+                  const photoUrl = getSpeakerPhoto(sp.name, speakerPhotos);
+                  const hasPhoto = Boolean(photoUrl);
+                  const initial = sp.name.replace(/^dr\.?\s*/i, "").trim().slice(0, 2).toUpperCase() || "SP";
+                  const roleSummary = sp.roles && sp.roles.length > 0
+                    ? Array.from(new Set(sp.roles.map((r: any) => typeof r === "string" ? r : r.role))).map((r: string) => r.charAt(0).toUpperCase() + r.slice(1)).join(" • ")
+                    : "Faculty";
 
                   return (
                     <div
                       key={sp.id}
                       className="p-3 sm:p-4 rounded-2xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-all flex flex-col items-center text-center group relative"
                     >
-                      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 relative mb-2.5 sm:mb-3 flex items-center justify-center">
+                      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-slate-100 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 relative mb-2.5 sm:mb-3 flex items-center justify-center shrink-0">
                         {hasPhoto ? (
                           <img
-                            src={imageUrl}
+                            src={photoUrl!}
                             alt={sp.name}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover object-top"
+                            loading="lazy"
                             onError={(e) => {
-                              (e.target as HTMLElement).style.display = "none";
+                              (e.currentTarget as HTMLElement).style.display = "none";
                             }}
                           />
                         ) : (
                           <span className="text-lg sm:text-xl font-bold text-teal-600 dark:text-teal-400">
-                            {sp.name.slice(0, 2).toUpperCase()}
+                            {initial}
                           </span>
                         )}
                         <button
@@ -990,17 +975,17 @@ export const Admin: React.FC = () => {
                           className="absolute inset-0 bg-slate-950/75 opacity-0 group-hover:opacity-100 transition-all flex flex-col items-center justify-center text-teal-300 text-[10px] font-bold gap-1 cursor-pointer"
                         >
                           <Camera className="w-4 h-4 sm:w-5 sm:h-5" />
-                          <span>Change</span>
+                          <span>{hasPhoto ? "Update" : "Upload"}</span>
                         </button>
                       </div>
 
-                      <h4 className="text-xs font-bold text-slate-900 dark:text-white line-clamp-2">{sp.name}</h4>
-                      <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 truncate max-w-full">{sp.roles?.join(" • ") || "Faculty"}</p>
+                      <h4 className="text-xs font-bold text-slate-900 dark:text-white line-clamp-2" title={sp.name}>{sp.name}</h4>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 truncate max-w-full">{roleSummary}</p>
 
                       <div className="mt-2.5 sm:mt-3">
                         {hasPhoto ? (
                           <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-teal-500/10 text-teal-700 dark:text-teal-400 border border-teal-500/20">
-                            R2 Synced
+                            Photo Active
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
@@ -1017,7 +1002,7 @@ export const Admin: React.FC = () => {
                         }}
                         className="mt-2 w-full py-1 text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-slate-100 dark:bg-slate-800 rounded-lg md:hidden cursor-pointer"
                       >
-                        Upload Photo
+                        {hasPhoto ? "Update Photo" : "Upload Photo"}
                       </button>
                     </div>
                   );
@@ -1587,15 +1572,22 @@ export const Admin: React.FC = () => {
             </div>
 
             <div className="flex flex-col items-center justify-center p-5 sm:p-6 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50 dark:bg-slate-950/40">
-              {previewImageUrl ? (
-                <div className="w-32 h-32 sm:w-36 sm:h-36 rounded-full overflow-hidden border-4 border-teal-500 shadow-xl mb-3">
-                  <img src={previewImageUrl} alt="Cropped Preview" className="w-full h-full object-cover" />
-                </div>
-              ) : (
-                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 mb-3">
-                  <Camera className="w-8 h-8 sm:w-10 sm:h-10" />
-                </div>
-              )}
+              {(() => {
+                const currentPhoto = getSpeakerPhoto(selectedSpeakerForUpload.name, speakerPhotos);
+                const displayPhoto = previewImageUrl || currentPhoto;
+                if (displayPhoto) {
+                  return (
+                    <div className="w-32 h-32 sm:w-36 sm:h-36 rounded-full overflow-hidden border-4 border-teal-500 shadow-xl mb-3">
+                      <img src={displayPhoto} alt="Faculty Portrait" className="w-full h-full object-cover" />
+                    </div>
+                  );
+                }
+                return (
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 mb-3">
+                    <Camera className="w-8 h-8 sm:w-10 sm:h-10" />
+                  </div>
+                );
+              })()}
 
               <label className="px-4 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 text-xs font-bold transition-all cursor-pointer shadow-sm">
                 <span>{previewImageUrl ? "Choose Different Image" : "Select Image from Device"}</span>
