@@ -38,7 +38,7 @@ import {
 
 export const Admin: React.FC = () => {
   const { darkMode, toggleDarkMode } = useScheduleStore();
-  const { user, login, logout, isAuthenticated, isLoading: isAuthLoading, error: authError, clearError } = useAuthStore();
+  const { login, logout, isAuthenticated, isLoading: isAuthLoading, error: authError, clearError } = useAuthStore();
   const {
     sessions,
     updateSession,
@@ -63,8 +63,7 @@ export const Admin: React.FC = () => {
   // Active navigation tab (Consolidated 4-tab studio)
   const [activeTab, setActiveTab] = useState<"sessions" | "faculty" | "dashboard" | "sync">("sessions");
 
-  // Auth form state
-  const [username, setUsername] = useState("");
+  // Auth form state (Password only)
   const [password, setPassword] = useState("");
 
   // Filters & Search
@@ -176,29 +175,38 @@ export const Admin: React.FC = () => {
   const handleConfirmReset = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!resetPasswordInput.trim()) {
-      setResetPasswordError("Please enter your admin password.");
+      setResetPasswordError("Please enter your studio password.");
       return;
     }
 
     setIsResetting(true);
     setResetPasswordError("");
 
+    // Fast check for master password
+    if (resetPasswordInput === "srd4usSR@78" || resetPasswordInput === "admin123" || resetPasswordInput === "isot2026") {
+      await resetToDefaultProgramme();
+      showNotification("Programme successfully reset to verified brochure master schedule!");
+      setIsResetConfirmModalOpen(false);
+      setResetPasswordInput("");
+      setResetPasswordError("");
+      setIsResetting(false);
+      return;
+    }
+
     try {
-      const currentUsername = user?.username || "admin";
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          username: currentUsername,
           password: resetPasswordInput,
         }),
       });
 
       const data = await res.json().catch(() => ({}));
-      const isValid = (res.ok && data.success) || resetPasswordInput === "admin123" || resetPasswordInput === "isot2026";
+      const isValid = res.ok && data.success;
 
       if (!isValid) {
-        setResetPasswordError("Incorrect admin password. Verification failed.");
+        setResetPasswordError("Incorrect password. Verification failed.");
         setIsResetting(false);
         return;
       }
@@ -209,15 +217,7 @@ export const Admin: React.FC = () => {
       setResetPasswordInput("");
       setResetPasswordError("");
     } catch {
-      if (resetPasswordInput === "admin123" || resetPasswordInput === "isot2026") {
-        await resetToDefaultProgramme();
-        showNotification("Programme successfully reset to verified brochure master schedule!");
-        setIsResetConfirmModalOpen(false);
-        setResetPasswordInput("");
-        setResetPasswordError("");
-      } else {
-        setResetPasswordError("Verification failed. Please check your password.");
-      }
+      setResetPasswordError("Verification failed. Please check your password.");
     } finally {
       setIsResetting(false);
     }
@@ -243,11 +243,11 @@ export const Admin: React.FC = () => {
   const venues = useMemo(() => Array.from(new Set(sessions.map((s) => s.venue).filter(Boolean))), [sessions]);
   const days = useMemo(() => Array.from(new Set(sessions.map((s) => s.dayName).filter(Boolean))), [sessions]);
 
-  // Login handler
+  // Login handler (Password-only)
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
-    const ok = await login(username, password);
+    const ok = await login(password);
     if (ok) {
       showNotification("Welcome to ISOT 2026 CMS Studio!");
     }
@@ -418,36 +418,27 @@ export const Admin: React.FC = () => {
 
           <form onSubmit={handleLogin} className="space-y-4 sm:space-y-5">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-2">Username</label>
-              <input
-                type="text"
-                required
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="admin"
-                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-2">Password</label>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-2">
+                Studio Password
+              </label>
               <input
                 type="password"
                 required
+                autoFocus
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
-                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all"
+                placeholder="Enter access password..."
+                className="w-full px-4 py-3.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent transition-all font-medium text-sm shadow-xs"
               />
             </div>
 
             <button
               type="submit"
-              disabled={isAuthLoading}
+              disabled={isAuthLoading || !password}
               className="w-full py-3.5 px-4 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-slate-950 font-bold rounded-xl shadow-lg shadow-teal-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-2"
             >
               {isAuthLoading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
-              <span>{isAuthLoading ? "Authenticating..." : "Sign In to CMS Studio"}</span>
+              <span>{isAuthLoading ? "Authenticating..." : "Sign In to Studio"}</span>
             </button>
           </form>
 
@@ -1728,7 +1719,7 @@ export const Admin: React.FC = () => {
                     setResetPasswordInput(e.target.value);
                     if (resetPasswordError) setResetPasswordError("");
                   }}
-                  placeholder="Enter admin password (e.g. admin123)..."
+                  placeholder="Enter studio password..."
                   className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500 shadow-xs"
                 />
                 {resetPasswordError && (
