@@ -26,14 +26,12 @@ export const App: React.FC = () => {
 
   return (
     <Router>
-      <div className="min-h-screen bg-gray-50 dark:bg-zinc-950 text-gray-900 dark:text-gray-100 flex flex-col font-sans transition-colors duration-300">
-        <main className="flex-1 max-w-7xl mx-auto w-full px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
-          <Routes>
-            <Route path="/" element={<Admin />} />
-            <Route path="/admin" element={<Admin />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </main>
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200 selection:bg-teal-500 selection:text-white">
+        <Routes>
+          <Route path="/" element={<Admin />} />
+          <Route path="/admin" element={<Admin />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </div>
     </Router>
   );
