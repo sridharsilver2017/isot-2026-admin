@@ -2,8 +2,10 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useProgrammeStore } from "../store/programmeStore";
 import { useAuthStore } from "../store/authStore";
 import { useScheduleStore } from "../store/scheduleStore";
-import { Session, ProgrammeItem, ProgrammeItemType, getSessionItems, Speaker } from "../types/programme";
+import { Session, ProgrammeItem, ProgrammeItemType, getSessionItems, Speaker, ProgrammeStatus } from "../types/programme";
 import { getSpeakerPhoto } from "../utils/speakerImages";
+import { getEffectiveSessionStatus, getEffectiveItemStatus } from "../utils/timeUtils";
+import { ProgramStatusBadge } from "../components/ProgramStatusBadge";
 import {
   Database,
   RefreshCw,
@@ -777,6 +779,7 @@ export const Admin: React.FC = () => {
                               <span className="text-xs px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold">
                                 {items.length} {items.length === 1 ? "Talk" : "Talks"}
                               </span>
+                              <ProgramStatusBadge status={getEffectiveSessionStatus(session)} size="sm" />
                             </div>
 
                             <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white mt-1">
@@ -792,7 +795,24 @@ export const Admin: React.FC = () => {
                           </div>
 
                           {/* Session Action Controls */}
-                          <div className="flex items-center gap-1.5 self-end md:self-center" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-1.5 self-end md:self-center flex-wrap" onClick={(e) => e.stopPropagation()}>
+                            <select
+                              value={session.status || ""}
+                              onChange={(e) => {
+                                const newStatus = (e.target.value || undefined) as ProgrammeStatus | undefined;
+                                updateSession(session.id, { status: newStatus });
+                                showNotification(`Session status set to ${newStatus ? newStatus.toUpperCase() : 'Auto'}`);
+                              }}
+                              className="px-2 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold cursor-pointer border border-slate-200 dark:border-slate-700 focus:outline-none"
+                              title="Override Session Status"
+                            >
+                              <option value="">Status: Auto</option>
+                              <option value="upcoming">Upcoming</option>
+                              <option value="ongoing">Live</option>
+                              <option value="completed">Completed</option>
+                              <option value="cancelled">Cancelled</option>
+                            </select>
+
                             <button
                               onClick={() => {
                                 setTargetSessionId(session.id);
@@ -865,6 +885,7 @@ export const Admin: React.FC = () => {
                                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${style.badge}`}>
                                           {item.type}
                                         </span>
+                                        <ProgramStatusBadge status={getEffectiveItemStatus(item)} size="sm" />
                                       </div>
 
                                       <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
@@ -931,7 +952,24 @@ export const Admin: React.FC = () => {
                                     </div>
 
                                     {/* Talk Action Buttons */}
-                                    <div className="flex items-center gap-1.5 self-end md:self-center mt-2 md:mt-0">
+                                    <div className="flex items-center gap-1.5 self-end md:self-center mt-2 md:mt-0 flex-wrap">
+                                      <select
+                                        value={item.status || ""}
+                                        onChange={(e) => {
+                                          const newStatus = (e.target.value || undefined) as ProgrammeStatus | undefined;
+                                          updateTalk(item.id, { status: newStatus });
+                                          showNotification(`Talk status set to ${newStatus ? newStatus.toUpperCase() : 'Auto'}`);
+                                        }}
+                                        className="px-2 py-1.5 rounded-lg bg-white/90 dark:bg-slate-800/90 text-slate-700 dark:text-slate-300 text-xs font-semibold cursor-pointer border border-slate-200 dark:border-slate-700 focus:outline-none"
+                                        title="Override Talk Status"
+                                      >
+                                        <option value="">Status: Auto</option>
+                                        <option value="upcoming">Upcoming</option>
+                                        <option value="ongoing">Live</option>
+                                        <option value="completed">Completed</option>
+                                        <option value="cancelled">Cancelled</option>
+                                      </select>
+
                                       <button
                                         onClick={() => {
                                           setTargetSessionId(session.id);
@@ -1288,9 +1326,11 @@ export const Admin: React.FC = () => {
                 const endTime = (form.elements.namedItem("endTime") as HTMLInputElement).value;
                 const sessionInChargeRaw = (form.elements.namedItem("sessionInCharge") as HTMLInputElement).value;
                 const sessionInCharge = sessionInChargeRaw ? sessionInChargeRaw.split(",").map((s) => s.trim()).filter(Boolean) : [];
+                const statusRaw = (form.elements.namedItem("status") as HTMLSelectElement).value;
+                const status = (statusRaw || undefined) as ProgrammeStatus | undefined;
 
                 if (editingSession) {
-                  updateSession(editingSession.id, { title, venue, date, dayName, startTime, endTime, sessionInCharge });
+                  updateSession(editingSession.id, { title, venue, date, dayName, startTime, endTime, sessionInCharge, status });
                   showNotification("Session updated!");
                 } else {
                   const newId = `session-${Date.now()}`;
@@ -1305,6 +1345,7 @@ export const Admin: React.FC = () => {
                     startTime,
                     endTime,
                     sessionInCharge,
+                    status,
                     sections: [{ id: `sec-${Date.now()}`, title: "Main Section", items: [] }],
                   });
                   showNotification("New session created!");
@@ -1391,6 +1432,21 @@ export const Admin: React.FC = () => {
                 />
               </div>
 
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Programme Status (Override)</label>
+                <select
+                  name="status"
+                  defaultValue={editingSession?.status || ""}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-sm cursor-pointer"
+                >
+                  <option value="">Automatic (Based on Schedule Time)</option>
+                  <option value="upcoming">Upcoming</option>
+                  <option value="ongoing">Live / Ongoing</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
@@ -1442,6 +1498,8 @@ export const Admin: React.FC = () => {
                 const moderators = parseList("moderators");
                 const panelists = parseList("panelists");
                 const casePresenters = parseList("casePresenters");
+                const statusRaw = (form.elements.namedItem("status") as HTMLSelectElement)?.value;
+                const status = (statusRaw || undefined) as ProgrammeStatus | undefined;
 
                 if (editingItem) {
                   updateTalk(editingItem.item.id, {
@@ -1449,6 +1507,7 @@ export const Admin: React.FC = () => {
                     startTime,
                     endTime,
                     type,
+                    status,
                     speakers,
                     chairpersons,
                     moderators,
@@ -1471,6 +1530,7 @@ export const Admin: React.FC = () => {
                     startTime,
                     endTime,
                     type,
+                    status,
                     speakers,
                     chairpersons,
                     moderators,
@@ -1495,7 +1555,7 @@ export const Admin: React.FC = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Format Type</label>
                   <select
@@ -1509,6 +1569,20 @@ export const Admin: React.FC = () => {
                     <option value="workshop">Workshop</option>
                     <option value="ceremony">Ceremony / Keynote</option>
                     <option value="break">Break / Lunch</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Status (Override)</label>
+                  <select
+                    name="status"
+                    defaultValue={editingItem?.item.status || ""}
+                    className="w-full px-2 sm:px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white text-xs sm:text-sm cursor-pointer"
+                  >
+                    <option value="">Auto</option>
+                    <option value="upcoming">Upcoming</option>
+                    <option value="ongoing">Live</option>
+                    <option value="completed">Completed</option>
+                    <option value="cancelled">Cancelled</option>
                   </select>
                 </div>
                 <div>
