@@ -544,6 +544,18 @@ export const Admin: React.FC = () => {
             <span className="hidden sm:inline">{darkMode ? "Light" : "Dark"}</span>
           </button>
 
+          {/* Auto-Sync 30s Indicator */}
+          <div
+            title="Auto-refreshing schedule and data from Cloudflare D1 every 30 seconds"
+            className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-teal-500/10 border border-teal-500/20 text-xs font-semibold text-teal-700 dark:text-teal-300"
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-teal-500"></span>
+            </span>
+            <span>Live 30s</span>
+          </div>
+
           {/* Sync Button */}
           <button
             onClick={handleSyncToDb}

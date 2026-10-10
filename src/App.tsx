@@ -14,6 +14,13 @@ export const App: React.FC = () => {
     checkAuth();
     fetchProgrammeFromServer();
     fetchSpeakerPhotos();
+
+    // Auto-refresh data and live status silently every 30 seconds
+    const intervalId = window.setInterval(() => {
+      fetchProgrammeFromServer(true);
+    }, 30000);
+
+    return () => window.clearInterval(intervalId);
   }, [checkAuth, fetchProgrammeFromServer, fetchSpeakerPhotos]);
 
   useEffect(() => {
